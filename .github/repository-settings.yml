@@ -1,3 +1,5 @@
+# Baseline mirrors crflynn/polaris-kubernetes-operator; the description is repo-specific.
+
 repository:
   description: Apply GitHub repository settings from a YAML manifest
   visibility: public
