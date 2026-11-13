@@ -25,11 +25,11 @@ The workflow example at [`examples/workflows/apply-settings.yml`](examples/workf
 
 1. Add a settings manifest at `.github/repository-settings.yml`; start with [`examples/settings/basic.yml`](examples/settings/basic.yml) and adjust it for the repository.
 2. Use `crflynn/github-repository-settings@v0` in the workflow to run the published action. It pulls `ghcr.io/crflynn/github-repository-settings:v0`, a multi-architecture image published on stable releases. After the first release, set GHCR package visibility to public so workflows in other repositories can pull it. The PR preview requires a stable release containing this feature; until then, an older image may fail instead of producing a plan.
-3. Create two repository secrets scoped to the target repository: a read-only fine-grained `REPOSITORY_SETTINGS_READ_TOKEN` with only `Administration: read` and required read permissions, and `REPOSITORY_SETTINGS_TOKEN` with `Administration: write` and required write permissions.
+3. Create the repository secret `REPOSITORY_SETTINGS_TOKEN` with `Administration: write` and the required write permissions. The workflow uses this token for both PR previews and applies.
 4. Copy the workflow example to `.github/workflows/apply-settings.yml`, update its `main` branch filter if needed, and commit both files on a trusted branch.
 5. Open a pull request to see the dry-run plan; merging the manifest changes to `main` triggers the real apply.
 
-The example uses `pull_request_target` so the read-only token is available for fork pull requests. The workflow uses the published action and checks out the pull request tree under `.pr` only to read its manifest; it does not run pull request code. Preserve this separation and never execute pull request-provided actions or scripts with secrets.
+The example uses `pull_request_target` so the token is available for fork pull requests. The PR preview runs in dry-run mode, which allows GitHub API reads and blocks all other HTTP methods before they reach GitHub. The workflow checks out the pull request tree under `.pr` only to read its manifest; it does not run pull request code. Preserve this separation and never execute pull request-provided actions or scripts with secrets.
 
 The action reads the settings file from the checked-out workspace, and its `settings-file` input defaults to `.github/repository-settings.yml`. See [`examples/settings/full.yml`](examples/settings/full.yml) for all supported components and review its high-impact settings before use.
 

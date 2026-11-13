@@ -43,7 +43,7 @@ jobs:
         if: github.event_name == 'pull_request_target'
         uses: crflynn/github-repository-settings@v0
         with:
-          token: ${{ secrets.REPOSITORY_SETTINGS_READ_TOKEN }}
+          token: ${{ secrets.REPOSITORY_SETTINGS_TOKEN }}
           settings-file: .pr/.github/repository-settings.yml
           dry-run: true
 
