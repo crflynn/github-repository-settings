@@ -1,0 +1,18 @@
+name: GitHub Repository Settings
+description: Apply repository, Actions, access, security, ruleset, Pages, and integration settings from a YAML manifest.
+author: crflynn
+inputs:
+  token:
+    description: GitHub token with read permissions for dry-run, or Administration write and component permissions to apply.
+    required: true
+  settings-file:
+    description: Settings manifest path relative to the checked-out workspace.
+    required: false
+    default: .github/repository-settings.yml
+  dry-run:
+    description: Report planned API write requests without sending them.
+    required: false
+    default: "false"
+runs:
+  using: docker
+  image: docker://ghcr.io/crflynn/github-repository-settings:v0

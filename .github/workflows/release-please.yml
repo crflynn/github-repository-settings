@@ -1,0 +1,47 @@
+name: Release Please
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: action-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    if: github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch
+    permissions:
+      contents: write
+      pull-requests: write
+    name: Create or update release PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create release PR or GitHub Release
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Update major and minor version tags
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            echo "Expected a stable vX.Y.Z release tag; got $RELEASE_TAG" >&2
+            exit 1
+          fi
+          major_tag="v${BASH_REMATCH[1]}"
+          minor_tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          git fetch --force origin --tags
+          git tag --force "$major_tag" "$RELEASE_TAG"
+          git tag --force "$minor_tag" "$RELEASE_TAG"
+          git push --force origin "refs/tags/${major_tag}" "refs/tags/${minor_tag}"

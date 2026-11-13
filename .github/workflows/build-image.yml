@@ -1,0 +1,85 @@
+name: Build Image
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  release:
+    types:
+      - published
+
+permissions: {}
+
+jobs:
+  build:
+    if: github.event_name != 'release'
+    permissions:
+      contents: read
+    name: Verify multi-architecture image build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build multi-architecture image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+
+  publish:
+    if: github.event_name == 'release' && github.event.release.prerelease == false
+    permissions:
+      contents: read
+      packages: write
+    name: Publish multi-architecture image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image tags
+        id: meta
+        env:
+          IMAGE_NAME: ghcr.io/crflynn/github-repository-settings
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Expected a stable vX.Y.Z release tag; got $RELEASE_TAG" >&2
+            exit 1
+          fi
+          major="v${BASH_REMATCH[1]}"
+          minor="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          {
+            echo "tags<<EOF"
+            printf '%s\n' "$IMAGE_NAME:$RELEASE_TAG" "$IMAGE_NAME:$minor" "$IMAGE_NAME:$major" "$IMAGE_NAME:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push multi-architecture image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,152 @@
+# Illustrative only. Review every setting before applying; this example enables public visibility,
+# repository security controls, access grants, and restrictive rulesets.
+# Replace placeholder usernames, team slugs, IDs, property names, webhook URL, and deploy key.
+repository:
+  description: Example repository managed by this action
+  visibility: public
+  default_branch: main
+  is_template: false
+  has_pull_requests: true
+  pull_request_creation_policy: collaborators_only
+  has_issues: true
+  allow_squash_merge: true
+  delete_branch_on_merge: true
+  topics:
+    - managed
+    - example
+  dependabot_security_updates: true
+  vulnerability_alerts: true
+  private_vulnerability_reporting: true
+  code_security: true
+  secret_scanning: true
+  secret_scanning_push_protection: true
+actions:
+  permissions:
+    enabled: true
+    allowed_actions: selected
+    selected_actions:
+      github_owned_allowed: true
+      verified_allowed: true
+      patterns_allowed:
+        - acme/*
+    sha_pinning_required: true
+  workflow:
+    default_workflow_permissions: read
+    can_approve_pull_request_reviews: false
+  fork_pr:
+    run_workflows_from_fork_pull_requests: true
+    send_write_tokens_to_workflows: false
+    send_secrets_and_variables: false
+    require_approval_for_fork_pr_workflows: true
+  retention:
+    days: 30
+collaborators:
+  - username: example-contributor
+    permission: push
+teams:
+  - slug: example-maintainers
+    permission: maintain
+autolinks:
+  - key_prefix: JIRA-
+    url_template: https://issues.example/browse/<num>
+    is_alphanumeric: false
+deploy_keys:
+  - key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKYHI9at36BY5Vmex1i1rcxQNeXva+gjmcy8Ws0xqLLY
+    title: example-read-only-deploy-key
+    read_only: true
+interaction_limits:
+  limit: contributors_only
+  expiry: one_week
+custom_properties:
+  - name: cost_center
+    value: platform
+  - name: services
+    value: [api, web]
+webhooks:
+  - url: https://hooks.example.test/github
+    events: [push, pull_request]
+    active: true
+    content_type: json
+    insecure_ssl: false
+    secret_env: REPOSITORY_SETTINGS_WEBHOOK_SECRET
+environments:
+  - name: production
+    wait_timer: 10
+    prevent_self_review: true
+    reviewers:
+      - type: Team
+        id: 12345
+    deployment_branch_policy:
+      protected_branches: true
+      custom_branch_policies: false
+rulesets:
+  - name: protect-default-branch
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include: ["~DEFAULT_BRANCH"]
+        exclude: []
+    rules:
+      - type: pull_request
+        parameters:
+          required_approving_review_count: 1
+          require_code_owner_review: true
+          dismissal_restriction:
+            enabled: true
+            allowed_actors:
+              - id: 12345
+                type: Team
+          required_reviewers:
+            - minimum_approvals: 1
+              file_patterns: ["*.go"]
+              reviewer:
+                id: 12345
+                type: Team
+      - type: required_status_checks
+        parameters:
+          strict_required_status_checks_policy: true
+          required_status_checks:
+            - context: test
+      - type: workflows
+        parameters:
+          workflows:
+            - path: .github/workflows/test.yml
+              ref: refs/heads/main
+      - type: code_scanning
+        parameters:
+          code_scanning_tools:
+            - tool: CodeQL
+              alerts_threshold: errors
+              security_alerts_threshold: high_or_higher
+      - type: code_coverage
+        parameters:
+          minimum_coverage: 80
+      - type: copilot_code_review
+        parameters:
+          review_on_push: true
+          review_draft_pull_requests: false
+  - name: restrict-push-content
+    target: push
+    enforcement: active
+    rules:
+      - type: file_path_restriction
+        parameters:
+          restricted_file_paths: [.env, "*.pem"]
+      - type: file_extension_restriction
+        parameters:
+          restricted_file_extensions: [.exe, .dll]
+      - type: max_file_path_length
+        parameters:
+          max_file_path_length: 200
+      - type: max_file_size
+        parameters:
+          max_file_size: 1000000
+pages:
+  enabled: true
+  build_type: legacy
+  source:
+    branch: main
+    path: /docs
+  public: true
+  https_enforced: true
