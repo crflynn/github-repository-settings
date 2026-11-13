@@ -1,5 +1,5 @@
 repository:
-  description: Kubernetes operator for Polaris policy management
+  description: Apply GitHub repository settings from a YAML manifest
   visibility: public
   default_branch: main
   is_template: false
