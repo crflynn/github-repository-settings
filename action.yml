@@ -10,7 +10,7 @@ inputs:
     required: false
     default: .github/repository-settings.yml
   dry-run:
-    description: Report planned API write requests without sending them.
+    description: Show planned operations and requested values without sending writes; redacts credential-like fields.
     required: false
     default: "false"
 runs:
