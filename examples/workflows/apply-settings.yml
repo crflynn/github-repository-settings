@@ -45,7 +45,7 @@ jobs:
         env:
           REPOSITORY_SETTINGS_WEBHOOK_SECRET: ${{ secrets.REPOSITORY_SETTINGS_WEBHOOK_SECRET }}
         with:
-          token: ${{ secrets.REPOSITORY_SETTINGS_READ_TOKEN }}
+          token: ${{ secrets.REPOSITORY_SETTINGS_TOKEN }}
           settings-file: .pr/.github/repository-settings.yml
           dry-run: true
 
