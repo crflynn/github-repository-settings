@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -62,7 +63,22 @@ func run(ctx context.Context, getenv func(string) string, output io.Writer) erro
 			return err
 		}
 		for _, operation := range operations {
-			if _, err := fmt.Fprintf(output, "Would %s %s\n", operation.Method, operation.Path); err != nil {
+			if _, err := fmt.Fprintf(output, "Would %s %s\n", operation.Action(), operation.Path); err != nil {
+				return err
+			}
+			if len(operation.Details) == 0 {
+				continue
+			}
+			var details any
+			if err := json.Unmarshal(operation.Details, &details); err != nil {
+				continue
+			}
+			details = redactSensitiveValues(details)
+			formatted, err := json.MarshalIndent(details, "", "  ")
+			if err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(output, "  Requested values:\n  %s\n", strings.ReplaceAll(string(formatted), "\n", "\n  ")); err != nil {
 				return err
 			}
 		}
@@ -70,4 +86,28 @@ func run(ctx context.Context, getenv func(string) string, output io.Writer) erro
 	}
 	_, err = fmt.Fprintf(output, "Reconciled repository settings for %s\n", getenv("GITHUB_REPOSITORY"))
 	return err
+}
+
+func redactSensitiveValues(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, nested := range value {
+			normalized := strings.ToLower(strings.ReplaceAll(key, "-", "_"))
+			if strings.Contains(normalized, "secret") || strings.Contains(normalized, "token") ||
+				strings.Contains(normalized, "password") || strings.Contains(normalized, "authorization") ||
+				strings.Contains(normalized, "private_key") {
+				value[key] = "[REDACTED]"
+				continue
+			}
+			value[key] = redactSensitiveValues(nested)
+		}
+		return value
+	case []any:
+		for index, nested := range value {
+			value[index] = redactSensitiveValues(nested)
+		}
+		return value
+	default:
+		return value
+	}
 }

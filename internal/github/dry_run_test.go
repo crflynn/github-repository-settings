@@ -45,6 +45,19 @@ func TestDryRunTransportForwardsOnlyReadMethods(t *testing.T) {
 	if want := []string{http.MethodGet, http.MethodHead}; !reflect.DeepEqual(gotForwarded, want) {
 		t.Fatalf("forwarded methods = %v, want %v", gotForwarded, want)
 	}
+	for _, test := range []struct {
+		method string
+		action string
+	}{
+		{http.MethodPost, "create"},
+		{http.MethodPut, "update"},
+		{http.MethodPatch, "update"},
+		{http.MethodDelete, "delete"},
+	} {
+		if got := (PlannedOperation{Method: test.method}).Action(); got != test.action {
+			t.Errorf("%s action = %q, want %q", test.method, got, test.action)
+		}
+	}
 	wantOperations := []PlannedOperation{
 		{Method: http.MethodPost, Path: "/repos/acme/widget"},
 		{Method: http.MethodPut, Path: "/repos/acme/widget"},
