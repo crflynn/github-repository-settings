@@ -1,0 +1,56 @@
+name: Apply repository settings
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/repository-settings.yml
+  push:
+    branches:
+      - main
+    paths:
+      - .github/repository-settings.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-settings-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the trusted base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out the pull request tree for its settings file
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .pr
+          persist-credentials: false
+
+      - name: Preview proposed settings
+        if: github.event_name == 'pull_request_target'
+        uses: crflynn/github-repository-settings@v0
+        with:
+          token: ${{ secrets.REPOSITORY_SETTINGS_READ_TOKEN }}
+          settings-file: .pr/.github/repository-settings.yml
+          dry-run: true
+
+      - name: Apply settings from the trusted branch
+        if: github.event_name != 'pull_request_target'
+        uses: crflynn/github-repository-settings@v0
+        with:
+          token: ${{ secrets.REPOSITORY_SETTINGS_TOKEN }}
+          settings-file: .github/repository-settings.yml
+          dry-run: false
