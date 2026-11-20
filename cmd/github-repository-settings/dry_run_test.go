@@ -54,10 +54,29 @@ func TestRunDryRunReportsPlannedWritesWithoutSendingThem(t *testing.T) {
 	if got := writes.Load(); got != 0 {
 		t.Errorf("API writes = %d, want 0", got)
 	}
-	if want := "Dry-run plan for acme/widget (no write requests were sent):\nWould PUT /repos/acme/widget/actions/permissions\n"; output.String() != want {
-		t.Fatalf("dry-run output = %q, want %q", output.String(), want)
+	if !strings.Contains(output.String(), "Would update /repos/acme/widget/actions/permissions\n  Requested values:\n  {") ||
+		!strings.Contains(output.String(), `"enabled": false`) {
+		t.Fatalf("dry-run output omitted planned values: %q", output.String())
 	}
 	if strings.Contains(output.String(), "read-only-token") {
 		t.Fatal("dry-run output exposed the API token")
+	}
+}
+func TestRedactSensitiveValues(t *testing.T) {
+	input := map[string]any{
+		"config": map[string]any{
+			"secret": "do-not-print",
+			"url":    "https://hooks.example",
+		},
+		"values": []any{map[string]any{"access_token": "also-secret", "team": "platform"}},
+	}
+	got := redactSensitiveValues(input).(map[string]any)
+	config := got["config"].(map[string]any)
+	if config["secret"] != "[REDACTED]" || config["url"] != "https://hooks.example" {
+		t.Fatalf("redacted config = %#v", config)
+	}
+	values := got["values"].([]any)[0].(map[string]any)
+	if values["access_token"] != "[REDACTED]" || values["team"] != "platform" {
+		t.Fatalf("redacted values = %#v", values)
 	}
 }

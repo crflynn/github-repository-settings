@@ -37,9 +37,9 @@ If the manifest uses `webhooks[].secret_env`, create the referenced repository s
 
 ### Dry-run behavior
 
-Set the action input `dry-run: true` to allow GitHub API reads, block every other HTTP method before it reaches GitHub, and report each planned write as its HTTP method and API path. Request bodies are not logged. The action's `dry-run` input defaults to `false`.
+Set the action input `dry-run: true` to allow GitHub API reads, block every other HTTP method before it reaches GitHub, and report planned `create`, `update`, and `delete` operations with API paths and the requested JSON values. Fields named like secrets, tokens, passwords, authorization values, or private keys are redacted. The action's `dry-run` input defaults to `false`.
 
-A dry-run still needs read permission for the API endpoints used by the configured components. The report lists write requests the current implementation would attempt; it is not a field-level diff or a guarantee that a real write will succeed. Some idempotent API calls may be listed even when GitHub would make no effective state change.
+A dry-run still needs read permission for the API endpoints used by the configured components. Requested values are the write payload, not a field-level diff: they may include values the API call preserves from existing settings, and do not show old values beside new ones. The report is not a guarantee that a real write will succeed. `PUT` endpoints that GitHub defines as create-or-update operations are reported as `update`; some idempotent API calls may still be listed.
 
 ## Manifest schema
 

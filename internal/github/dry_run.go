@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -9,8 +10,23 @@ import (
 
 // PlannedOperation describes a write request that Apply would send in dry-run mode.
 type PlannedOperation struct {
-	Method string
-	Path   string
+	Method  string
+	Path    string
+	Details json.RawMessage
+}
+
+// Action describes the operation represented by an intercepted write request.
+func (operation PlannedOperation) Action() string {
+	switch operation.Method {
+	case http.MethodPost:
+		return "create"
+	case http.MethodPut, http.MethodPatch:
+		return "update"
+	case http.MethodDelete:
+		return "delete"
+	default:
+		return "write"
+	}
 }
 
 // dryRunTransport forwards read requests and locally acknowledges every other
@@ -26,16 +42,23 @@ func (t *dryRunTransport) RoundTrip(request *http.Request) (*http.Response, erro
 		return t.base.RoundTrip(request)
 	}
 
+	var body []byte
+	if request.Body != nil {
+		var err error
+		body, err = io.ReadAll(request.Body)
+		_ = request.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
 	t.mu.Lock()
 	t.operations = append(t.operations, PlannedOperation{
-		Method: request.Method,
-		Path:   request.URL.EscapedPath(),
+		Method:  request.Method,
+		Path:    request.URL.EscapedPath(),
+		Details: append(json.RawMessage(nil), body...),
 	})
 	t.mu.Unlock()
 
-	if request.Body != nil {
-		_ = request.Body.Close()
-	}
 	return &http.Response{
 		Status:        "200 OK",
 		StatusCode:    http.StatusOK,
@@ -47,6 +70,7 @@ func (t *dryRunTransport) RoundTrip(request *http.Request) (*http.Response, erro
 		ContentLength: 2,
 		Request:       request,
 	}, nil
+
 }
 
 func (t *dryRunTransport) Operations() []PlannedOperation {
